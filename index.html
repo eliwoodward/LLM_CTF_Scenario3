@@ -1,0 +1,1366 @@
+104.248.67.174<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HeliosBank IR Jump Host - Scenario 3: LLM Exfiltration Hunt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #020617;
+      --panel-bg: #020617;
+      --terminal-bg: #020617;
+      --terminal-border: #1f2937;
+      --terminal-text: #e5e7eb;
+      --accent: #22c55e;
+      --accent-soft: #4ade80;
+      --muted: #9ca3af;
+      --prompt-user: #22c55e;
+      --prompt-host: #60a5fa;
+      --error: #f97373;
+      --success: #22c55e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #0b1120 0, #020617 55%, #000 100%);
+      color: var(--terminal-text);
+    }
+
+    .page-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 1200px;
+      background: rgba(2, 6, 23, 0.98);
+      border-radius: 12px;
+      border: 1px solid #111827;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75);
+      display: flex;
+      overflow: hidden;
+    }
+
+    .scenario-panel {
+      width: 38%;
+      min-width: 280px;
+      border-right: 1px solid #111827;
+      padding: 14px 14px 12px;
+      background: radial-gradient(circle at top left, #020617 0, #020617 60%, #000 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .scenario-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .scenario-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .scenario-subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .scenario-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      border: 1px solid #16a34a33;
+      padding: 2px 10px 2px 6px;
+      font-size: 0.7rem;
+      color: #bbf7d0;
+      background: linear-gradient(to right, #022c22, #022c22cc);
+      margin-top: 4px;
+    }
+    .scenario-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+    }
+
+    .card {
+      border-radius: 8px;
+      border: 1px solid #111827;
+      background: #020617;
+      padding: 8px 9px;
+    }
+
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      margin-bottom: 2px;
+    }
+
+    .card-subtitle {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .alert-body {
+      font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 0.72rem;
+      color: #e5e7eb;
+      background: #020617;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #111827;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 110px;
+      overflow-y: auto;
+    }
+
+    .step-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .step-text {
+      font-size: 0.76rem;
+      color: #d1d5db;
+      line-height: 1.3;
+    }
+
+    .step-text code {
+      font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 0.74rem;
+      background: #020617;
+      border-radius: 4px;
+      padding: 1px 4px;
+      border: 1px solid #111827;
+    }
+
+    .step-explanation {
+      margin-top: 6px;
+      padding-top: 4px;
+      border-top: 1px dashed #064e3b;
+      font-size: 0.74rem;
+      color: #a7f3d0;
+      line-height: 1.3;
+    }
+
+    .hints-list {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hint-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hint-button {
+      border: 1px solid #1f2937;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      color: #e5e7eb;
+      background: #020617;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .hint-button:hover {
+      border-color: #4ade80;
+    }
+
+    .hint-text {
+      font-size: 0.72rem;
+      color: #9ca3af;
+      padding-left: 4px;
+    }
+
+    .answer-label {
+      font-size: 0.74rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    #answer-input {
+      width: 100%;
+      min-height: 90px;
+      max-height: 150px;
+      resize: vertical;
+      font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 0.76rem;
+      background: #020617;
+      color: var(--terminal-text);
+      border-radius: 6px;
+      border: 1px solid #111827;
+      padding: 6px;
+      outline: none;
+    }
+
+    #answer-input:focus {
+      border-color: var(--accent-soft);
+      box-shadow: 0 0 0 1px #22c55e33;
+    }
+
+    .answer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 4px;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      border-radius: 999px;
+      border: none;
+      padding: 4px 12px;
+      font-size: 0.76rem;
+      font-weight: 500;
+      color: #022c22;
+      background: linear-gradient(to right, #22c55e, #4ade80);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.05);
+    }
+
+    .btn-ghost {
+      border-radius: 999px;
+      border: 1px solid #1f2937;
+      padding: 3px 9px;
+      font-size: 0.7rem;
+      color: #9ca3af;
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-ghost:hover {
+      border-color: #4b5563;
+    }
+
+    .btn-next {
+      margin-top: 6px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .answer-status {
+      font-size: 0.72rem;
+      min-height: 16px;
+      margin-top: 2px;
+    }
+
+    .answer-status.success {
+      color: var(--success);
+    }
+
+    .answer-status.error {
+      color: var(--error);
+    }
+
+    .steps-progress {
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .step-pill {
+      border-radius: 999px;
+      padding: 1px 7px;
+      border: 1px solid #1f2937;
+      font-size: 0.7rem;
+    }
+
+    .step-pill.current {
+      border-color: #4ade80;
+      color: #bbf7d0;
+    }
+
+    .step-pill.solved {
+      border-color: #22c55e;
+      background: #022c22;
+      color: #bbf7d0;
+    }
+
+    .step-pill.pending {
+      color: #9ca3af;
+    }
+
+    .terminal-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .terminal-frame {
+      width: 100%;
+      background: #020617;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .terminal-header {
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      background: #020617;
+      border-bottom: 1px solid #111827;
+    }
+
+    .term-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+    }
+
+    .dot.red { background: #ef4444; }
+    .dot.yellow { background: #facc15; }
+    .dot.green { background: #22c55e; }
+
+    .term-title {
+      margin-left: 10px;
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+
+    .terminal-body {
+      background: var(--terminal-bg);
+      padding: 10px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      height: 560px;
+    }
+
+    #terminal-output {
+      flex: 1;
+      background: transparent;
+      color: var(--terminal-text);
+      font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 0.82rem;
+      padding: 4px 2px 0;
+      margin: 0;
+      border: none;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .prompt-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      margin-top: 6px;
+      font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 0.84rem;
+    }
+
+    .prompt-label {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .prompt-user { color: var(--prompt-user); }
+    .prompt-host { color: var(--prompt-host); }
+    .prompt-symbol { color: #e5e7eb; }
+
+    #terminal-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--terminal-text);
+      font-family: inherit;
+      font-size: inherit;
+      padding: 0;
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      caret-color: var(--accent-soft);
+    }
+
+    #terminal-input::placeholder {
+      color: #4b5563;
+    }
+
+    .terminal-footer {
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px solid #111827;
+      font-size: 0.74rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .terminal-footer span {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 980px) {
+      .app-shell {
+        flex-direction: column;
+      }
+      .scenario-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #111827;
+      }
+      .terminal-body {
+        height: 520px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .terminal-body {
+        height: 480px;
+      }
+      .terminal-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="app-shell">
+      <!-- LEFT: Scenario / alerts / hints / answers -->
+      <aside class="scenario-panel">
+        <div class="scenario-header">
+          <div class="scenario-title">Scenario 3: LLM Exfiltration Hunt</div>
+          <div class="scenario-subtitle">
+            You are on the HeliosBank IR jump host investigating suspected bulk LLM exports.
+          </div>
+          <div class="scenario-badge">
+            <span class="scenario-badge-dot"></span>
+            <span>Hands-on: investigate in the terminal, answer on the left</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Active Alert</div>
+          <div class="card-subtitle">
+            SIEM summary for the current step. Treat this like your alert card.
+          </div>
+          <pre id="alert-text" class="alert-body"></pre>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Step</div>
+          <div id="step-title" class="step-title"></div>
+          <div id="step-description" class="step-text"></div>
+          <div id="step-explanation" class="step-explanation"></div>
+
+          <div class="hints-list" id="hints-container"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Answer</div>
+          <div class="answer-label">
+            Paste the relevant log line(s) from the terminal. Exact content matters.
+          </div>
+          <textarea id="answer-input" placeholder="Paste logs from the terminal here..."></textarea>
+          <div class="answer-actions">
+            <button class="btn-primary" id="submit-answer">Submit Answer</button>
+            <button class="btn-ghost" id="clear-answer">Clear</button>
+          </div>
+          <div id="answer-status" class="answer-status"></div>
+          <div class="steps-progress" id="steps-progress"></div>
+          <button class="btn-primary btn-next" id="next-step-btn" style="display:none;">
+            Continue to next step →
+          </button>
+        </div>
+      </aside>
+
+      <!-- RIGHT: Terminal -->
+      <main class="terminal-col">
+        <div class="terminal-frame">
+          <div class="terminal-header">
+            <div class="term-dots">
+              <div class="dot red"></div>
+              <div class="dot yellow"></div>
+              <div class="dot green"></div>
+            </div>
+            <div class="term-title">helios-ir@jump01 - Incident Response Jump Host</div>
+          </div>
+          <div class="terminal-body">
+            <pre id="terminal-output"></pre>
+            <div class="prompt-line">
+              <span class="prompt-label">
+                <span class="prompt-user">helios-ir</span>
+                <span>@</span>
+                <span class="prompt-host">jump01</span>
+                <span>:</span>
+                <span id="prompt-path">~</span>
+                <span class="prompt-symbol">$</span>
+              </span>
+              <input
+                id="terminal-input"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="type a command (try: help)"
+              />
+            </div>
+            <div class="terminal-footer">
+              <span>Keyboard: Enter = run • Tab = auto-complete • ↑/↓ = history</span>
+              <span>Commands: help, ls, cd, pwd, cat, tail, grep, jq, clear, exit</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    /* ============ Scenario logic (steps / alerts) ============ */
+
+    const steps = [
+      {
+        number: 1,
+        title: "Confirm the alerted user from SIEM",
+        alertText: [
+          "# HeliosBank SOC - High Volume LLM Export Alert (SIEM summary)",
+          "# Rule: LLM-EXFIL-001  •  Severity: High",
+          "# Source host: llm-gateway-01 (10.20.15.32)",
+          "# Task: Confirm which user_id the SIEM tied to this export."
+        ].join("\n"),
+        description:
+          'Start from the SIEM alert details under <code>/var/log/alerts</code>.\n' +
+          'Use the terminal to navigate to the alerts directory and open the file\n' +
+          '<code>siem_llm_export_2025-10-22.log</code>. Identify the specific log line\n' +
+          'that shows the high-volume LLM export event and the associated <code>user_id</code>.\n\n' +
+          'Paste that full alert line here (the CSV line, not just the user_id).',
+        hints: [
+          'From <code>~</code>, try: <code>cd /var/log/alerts</code> then <code>ls</code>.',
+          'Use <code>cat siem_llm_export_2025-10-22.log</code> to see the alert details.',
+          'You should see a CSV line with fields like <code>ts,rule_id,severity,src_ip,user_id,...</code>. Paste that line.'
+        ],
+        explanation:
+          'You confirmed that the SIEM alert fired on <code>cust-ops-112</code> sending\n' +
+          'high-volume <code>export_conversations</code> traffic to <code>sync.llm-export.net</code>.\n' +
+          'That gives you the key pivot entities: the user account and the external destination.',
+        validate(answer) {
+          const normalized = answer.trim();
+          return (
+            /LLM-EXFIL-001/.test(normalized) &&
+            /cust-ops-112/.test(normalized) &&
+            /sync\.llm-export\.net/.test(normalized)
+          );
+        }
+      },
+      {
+        number: 2,
+        title: "Identify the suspicious export audit entry",
+        alertText: [
+          "# Pivot: LLM audit logs for llm-gateway-01",
+          "# Focus: export_conversations activity tied to the SIEM alert user"
+        ].join("\n"),
+        description:
+          'Now pivot into the LLM audit JSONL logs under <code>/var/log/llm-audit</code>.\n' +
+          'Find the first <code>export_conversations</code> entry fired by the SIEM alert user\n' +
+          '<code>cust-ops-112</code> that looks suspicious.\n\n' +
+          'Paste the entire JSON line for that first suspicious export here.',
+        hints: [
+          'Change to the audit directory: <code>cd /var/log/llm-audit</code> then <code>ls</code>.',
+          'Use <code>cat llm_audit_2025-10-21.jsonl</code> to view the JSONL events.',
+          'Look for the first line where <code>tool</code> is <code>export_conversations</code> and <code>user_id</code> is <code>cust-ops-112</code>. Paste that full JSON object.'
+        ],
+        explanation:
+          'You found the first suspicious LLM audit record where\n' +
+          '<code>cust-ops-112</code> used <code>export_conversations</code> to send ~5000 rows\n' +
+          'to <code>sync.llm-export.net</code> using the <code>sk-llm-gateway-prod-exfil</code> API key.\n' +
+          'This confirms a dedicated export integration, not just normal chat usage.',
+        validate(answer) {
+          const normalized = answer.trim();
+          return (
+            /"tool":"export_conversations"/.test(normalized) &&
+            /"user_id":"cust-ops-112"/.test(normalized) &&
+            /"ts":"2025-10-21T18:29:59Z"/.test(normalized)
+          );
+        }
+      },
+      {
+        number: 3,
+        title: "Confirm the export path in proxy logs",
+        alertText: [
+          "# Gateway Proxy Log Focus",
+          "# Look for POSTs from 10.20.15.32 to sync.llm-export.net with large payloads."
+        ].join("\n"),
+        description:
+          'Use the HTTP proxy logs under <code>/var/log/proxy</code> to see how the\n' +
+          'LLM gateway reached the external export service.\n\n' +
+          'Find the first proxy entry where <code>host</code> is <code>sync.llm-export.net</code>\n' +
+          'and the bytes sent are large (bulk upload). Paste that full CSV log line here.',
+        hints: [
+          'Change to the proxy directory: <code>cd /var/log/proxy</code> then run <code>ls</code>.',
+          'Open the 2025-10-21 proxy log with <code>cat gateway-proxy_2025-10-21.log</code>.',
+          'Look for the earliest line where <code>host</code> is <code>sync.llm-export.net</code> and <code>path</code> is <code>/v1/export_conversations</code>. Paste that line.'
+        ],
+        explanation:
+          'You verified at the HTTP layer that the gateway is POSTing to\n' +
+          '<code>sync.llm-export.net</code> on the <code>/v1/export_conversations</code> path\n' +
+          'with very large <code>bytes_sent</code> values. This ties the export tool and API key\n' +
+          'to concrete bulk exfiltration traffic at the proxy boundary.',
+        validate(answer) {
+          const normalized = answer.trim();
+          return (
+            /10\.20\.15\.32/.test(normalized) &&
+            /sync\.llm-export\.net/.test(normalized) &&
+            /\/v1\/export_conversations/.test(normalized) &&
+            /2025-10-21T18:30:02Z/.test(normalized)
+          );
+        }
+      },
+      {
+        number: 4,
+        title: "Propose immediate containment (free-text)",
+        alertText: [
+          "# Containment Planning",
+          "# The export integration appears to be abusing an API key and external host."
+        ].join("\n"),
+        description:
+          'Based on what you have seen, write 1–2 sentences describing immediate\n' +
+          'containment steps you would take. Think in terms of blocking destination,\n' +
+          'revoking keys, disabling risky features, and preserving evidence.\n\n' +
+          'You do NOT have to paste logs for this step — just your containment plan.',
+        hints: [
+          'Mention blocking or filtering traffic to <code>sync.llm-export.net</code> at the firewall or proxy.',
+          'Include rotation or revocation of the suspicious API key used for <code>export_conversations</code>.',
+          'Remember to preserve logs and notify owners of the LLM gateway / data owners.'
+        ],
+        explanation:
+          'You outlined a containment plan that cuts off exfiltration (blocking the\n' +
+          'external host / path), revokes or rotates the exposed API key, and preserves\n' +
+          'logs and context for follow-up investigation and stakeholder notification.',
+        validate(answer) {
+          const lower = answer.toLowerCase();
+          const containsAction =
+            lower.includes("block") ||
+            lower.includes("firewall") ||
+            lower.includes("deny") ||
+            lower.includes("revoke") ||
+            lower.includes("rotate") ||
+            lower.includes("disable") ||
+            lower.includes("suspend");
+          const mentionsContext =
+            lower.includes("api key") ||
+            lower.includes("export") ||
+            lower.includes("llm") ||
+            lower.includes("sync.llm-export.net");
+          return containsAction && mentionsContext;
+        }
+      }
+    ];
+
+    let currentStepIndex = 0;
+    const solvedSteps = new Set();
+
+    const alertTextEl = document.getElementById("alert-text");
+    const stepTitleEl = document.getElementById("step-title");
+    const stepDescriptionEl = document.getElementById("step-description");
+    const stepExplanationEl = document.getElementById("step-explanation");
+    const hintsContainerEl = document.getElementById("hints-container");
+    const answerInputEl = document.getElementById("answer-input");
+    const answerStatusEl = document.getElementById("answer-status");
+    const stepsProgressEl = document.getElementById("steps-progress");
+    const submitAnswerBtn = document.getElementById("submit-answer");
+    const clearAnswerBtn = document.getElementById("clear-answer");
+    const nextStepBtn = document.getElementById("next-step-btn");
+
+    function renderStep() {
+      const step = steps[currentStepIndex];
+      alertTextEl.textContent = step.alertText;
+      stepTitleEl.textContent = `Step ${step.number}: ${step.title}`;
+      stepDescriptionEl.innerHTML = step.description;
+      stepExplanationEl.innerHTML = "";
+      answerInputEl.value = "";
+      answerStatusEl.textContent = "";
+      answerStatusEl.className = "answer-status";
+      nextStepBtn.style.display = "none";
+
+      // Render hints
+      hintsContainerEl.innerHTML = "";
+      step.hints.forEach((hintText, idx) => {
+        const row = document.createElement("div");
+        row.className = "hint-row";
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "hint-button";
+        btn.textContent = `Reveal Hint ${idx + 1}`;
+        const hintSpan = document.createElement("div");
+        hintSpan.className = "hint-text";
+        hintSpan.style.display = "none";
+        hintSpan.innerHTML = hintText;
+
+        btn.addEventListener("click", () => {
+          hintSpan.style.display = hintSpan.style.display === "none" ? "block" : "none";
+        });
+
+        row.appendChild(btn);
+        row.appendChild(hintSpan);
+        hintsContainerEl.appendChild(row);
+      });
+
+      renderStepsProgress();
+    }
+
+    function renderStepsProgress() {
+      stepsProgressEl.innerHTML = "";
+      steps.forEach((step, idx) => {
+        const pill = document.createElement("span");
+        pill.classList.add("step-pill");
+        if (solvedSteps.has(step.number)) {
+          pill.classList.add("solved");
+          pill.textContent = `Step ${step.number}`;
+        } else if (idx === currentStepIndex) {
+          pill.classList.add("current");
+          pill.textContent = `Step ${step.number}`;
+        } else {
+          pill.classList.add("pending");
+          pill.textContent = `Step ${step.number}`;
+        }
+        stepsProgressEl.appendChild(pill);
+      });
+    }
+
+    function setAnswerStatus(message, type) {
+      answerStatusEl.textContent = message;
+      answerStatusEl.className = "answer-status " + (type || "");
+    }
+
+    submitAnswerBtn.addEventListener("click", () => {
+      const step = steps[currentStepIndex];
+      const answer = answerInputEl.value || "";
+      if (!answer.trim()) {
+        setAnswerStatus("Please paste your answer from the terminal before submitting.", "error");
+        return;
+      }
+
+      try {
+        const ok = step.validate(answer);
+        if (ok) {
+          solvedSteps.add(step.number);
+          setAnswerStatus("✅ Correct! Flag captured for this step.", "success");
+          stepExplanationEl.innerHTML = step.explanation || "";
+          renderStepsProgress();
+
+          if (currentStepIndex < steps.length - 1) {
+            nextStepBtn.textContent = `Continue to Step ${steps[currentStepIndex + 1].number} →`;
+            nextStepBtn.style.display = "inline-flex";
+          } else {
+            nextStepBtn.style.display = "none";
+            setAnswerStatus("✅ Scenario complete. All steps solved.", "success");
+          }
+        } else {
+          setAnswerStatus("That doesn't look like the expected log line / answer yet. Keep digging.", "error");
+        }
+      } catch (e) {
+        console.error(e);
+        setAnswerStatus("There was an error validating your answer. Try again.", "error");
+      }
+    });
+
+    nextStepBtn.addEventListener("click", () => {
+      if (currentStepIndex < steps.length - 1) {
+        currentStepIndex += 1;
+        renderStep();
+      }
+    });
+
+    clearAnswerBtn.addEventListener("click", () => {
+      answerInputEl.value = "";
+      setAnswerStatus("", "");
+      stepExplanationEl.innerHTML = "";
+    });
+
+    /* ================= Terminal / VFS logic (shell) ================= */
+
+    const vfs = {
+      "/": {
+        type: "dir",
+        children: {
+          home: {
+            type: "dir",
+            children: {
+              "helios-ir": {
+                type: "dir",
+                children: {
+                  "README.txt": {
+                    type: "file",
+                    content: [
+                      "HeliosBank IR Jump Host - Scenario 3",
+                      "",
+                      "You are investigating suspected data exfiltration from the LLM gateway.",
+                      "This investigation was kicked off by a SIEM alert about high-volume LLM exports.",
+                      "",
+                      "Recommended workflow:",
+                      "  - /var/log/alerts       (SIEM-style detection summary)",
+                      "  - /var/log/llm-audit    (LLM tool and API audit in JSONL)",
+                      "  - /var/log/proxy        (HTTP connect logs for the gateway)",
+                      "  - /var/log/netflow      (optional: traffic volume context)",
+                      "",
+                      "Use the left-hand panel for step prompts, hints, and answer submission."
+                    ].join("\n")
+                  }
+                }
+              }
+            }
+          },
+          var: {
+            type: "dir",
+            children: {
+              log: {
+                type: "dir",
+                children: {
+                  alerts: {
+                    type: "dir",
+                    children: {
+                      "siem_llm_export_2025-10-22.log": {
+                        type: "file",
+                        content: [
+                          "# HeliosBank SOC - High Volume LLM Export Alert",
+                          "# ts,rule_id,severity,src_ip,user_id,dest_host,tool,description",
+                          "2025-10-22T09:15:02Z,LLM-EXFIL-001,high,10.20.15.32,cust-ops-112,sync.llm-export.net,export_conversations,Anomalous volume of LLM conversation exports to external host"
+                        ].join("\n")
+                      }
+                    }
+                  },
+                  netflow: {
+                    type: "dir",
+                    children: {
+                      "llm-gateway-01_2025-10-21.log": {
+                        type: "file",
+                        content: [
+                          "# HeliosBank netflow summary (UTC) 2025-10-21",
+                          "# src_ip,dst_ip,dst_port,bytes,flows,proto,comment",
+                          "10.20.15.32,198.51.100.10,443,124908,322,TCP,api.heliosbank.internal,normal LLM API",
+                          "10.20.15.32,198.51.100.11,443,119832,311,TCP,api.heliosbank.internal,normal LLM API",
+                          "10.20.15.32,203.0.113.77,443,120993,304,TCP,updates.payment-gw.internal,card updates",
+                          "10.20.15.32,203.0.113.44,443,18240,44,TCP,model-backend-02.internal,health checks",
+                          "",
+                          "# spike around 2025-10-21T18:30Z",
+                          "10.20.15.32,198.51.100.77,443,912483201,1843,TCP,sync.llm-export.net,sustained bulk upload",
+                          "10.20.15.32,198.51.100.77,443,884322118,1766,TCP,sync.llm-export.net,sustained bulk upload",
+                          "10.20.15.32,198.51.100.77,443,903112774,1794,TCP,sync.llm-export.net,sustained bulk upload",
+                          "",
+                          "10.20.15.32,198.51.100.15,443,22193,61,TCP,api.heliosbank.internal,mixed traffic",
+                          "10.20.15.32,192.0.2.50,443,33218,80,TCP,monitoring.heliosbank.internal,metrics push"
+                        ].join("\n")
+                      },
+                      "llm-gateway-01_2025-10-22.log": {
+                        type: "file",
+                        content: [
+                          "# HeliosBank netflow summary (UTC) 2025-10-22",
+                          "# src_ip,dst_ip,dst_port,bytes,flows,proto,comment",
+                          "10.20.15.32,198.51.100.10,443,139221,335,TCP,api.heliosbank.internal,normal LLM API",
+                          "10.20.15.32,198.51.100.11,443,131008,322,TCP,api.heliosbank.internal,normal LLM API",
+                          "10.20.15.32,203.0.113.77,443,120211,298,TCP,updates.payment-gw.internal,card updates",
+                          "10.20.15.32,198.51.100.77,443,733221992,1511,TCP,sync.llm-export.net,continued bulk upload",
+                          "10.20.15.32,192.0.2.50,443,30111,74,TCP,monitoring.heliosbank.internal,metrics push"
+                        ].join("\n")
+                      }
+                    }
+                  },
+                  proxy: {
+                    type: "dir",
+                    children: {
+                      "gateway-proxy_2025-10-21.log": {
+                        type: "file",
+                        content: [
+                          "# simplified HTTP connect log, UTC",
+                          "# ts,src_ip,method,host,path,status,bytes_sent,bytes_rcvd",
+                          "2025-10-21T17:55:11Z,10.20.15.32,POST,api.heliosbank.internal,/v1/chat/completions,200,5120,18123",
+                          "2025-10-21T17:55:13Z,10.20.15.32,POST,api.heliosbank.internal,/v1/chat/completions,200,4988,17604",
+                          "2025-10-21T18:29:44Z,10.20.15.32,POST,sync.llm-export.net,/v1/ping,200,512,1024",
+                          "2025-10-21T18:30:02Z,10.20.15.32,POST,sync.llm-export.net,/v1/export_conversations,200,9832121,10294",
+                          "2025-10-21T18:31:17Z,10.20.15.32,POST,sync.llm-export.net,/v1/export_conversations,200,10098221,10488",
+                          "2025-10-21T18:33:55Z,10.20.15.32,POST,sync.llm-export.net,/v1/export_conversations,200,10144233,10612",
+                          "2025-10-21T18:36:07Z,10.20.15.32,POST,sync.llm-export.net,/v1/export_conversations,200,10098811,10492",
+                          "2025-10-21T18:45:02Z,10.20.15.32,POST,api.heliosbank.internal,/v1/chat/completions,200,5112,18111"
+                        ].join("\n")
+                      },
+                      "gateway-proxy_2025-10-22.log": {
+                        type: "file",
+                        content: [
+                          "# simplified HTTP connect log, UTC",
+                          "# ts,src_ip,method,host,path,status,bytes_sent,bytes_rcvd",
+                          "2025-10-22T09:10:11Z,10.20.15.32,POST,api.heliosbank.internal,/v1/chat/completions,200,4810,17602",
+                          "2025-10-22T09:12:55Z,10.20.15.32,POST,sync.llm-export.net,/v1/export_conversations,200,10011239,10388",
+                          "2025-10-22T09:14:21Z,10.20.15.32,POST,sync.llm-export.net,/v1/export_conversations,200,10091101,10395",
+                          "2025-10-22T10:01:02Z,10.20.15.32,POST,api.heliosbank.internal,/v1/chat/completions,200,5222,18931"
+                        ].join("\n")
+                      }
+                    }
+                  },
+                  "llm-audit": {
+                    type: "dir",
+                    children: {
+                      "llm_audit_2025-10-21.jsonl": {
+                        type: "file",
+                        content: [
+                          '{"ts":"2025-10-21T18:28:51Z","gateway_node":"llm-gateway-01","user_id":"cust-88201","session_id":"sess-22091","tool":"chat_completion","dest":"api.heliosbank.internal","api_key":"sk-llm-gateway-prod-main","metadata":{"ip":"10.20.15.32","model":"helio-gpt-3.5"}}',
+                          '{"ts":"2025-10-21T18:29:59Z","gateway_node":"llm-gateway-01","user_id":"cust-ops-112","session_id":"sess-ops-8831","tool":"export_conversations","dest":"sync.llm-export.net","api_key":"sk-llm-gateway-prod-exfil","metadata":{"ip":"10.20.15.32","reason":"bulk backup","rows":5000}}',
+                          '{"ts":"2025-10-21T18:31:15Z","gateway_node":"llm-gateway-01","user_id":"cust-ops-112","session_id":"sess-ops-8831","tool":"export_conversations","dest":"sync.llm-export.net","api_key":"sk-llm-gateway-prod-exfil","metadata":{"ip":"10.20.15.32","reason":"bulk backup","rows":5200}}',
+                          '{"ts":"2025-10-21T18:36:04Z","gateway_node":"llm-gateway-01","user_id":"cust-ops-112","session_id":"sess-ops-8831","tool":"export_conversations","dest":"sync.llm-export.net","api_key":"sk-llm-gateway-prod-exfil","metadata":{"ip":"10.20.15.32","reason":"bulk backup","rows":5100}}',
+                          '{"ts":"2025-10-21T18:45:33Z","gateway_node":"llm-gateway-01","user_id":"cust-44110","session_id":"sess-22092","tool":"chat_completion","dest":"api.heliosbank.internal","api_key":"sk-llm-gateway-prod-main","metadata":{"ip":"10.20.15.32","model":"helio-gpt-3.5"}}'
+                        ].join("\n")
+                      },
+                      "llm_audit_2025-10-22.jsonl": {
+                        type: "file",
+                        content: [
+                          '{"ts":"2025-10-22T09:12:03Z","gateway_node":"llm-gateway-01","user_id":"cust-ops-112","session_id":"sess-ops-9041","tool":"export_conversations","dest":"sync.llm-export.net","api_key":"sk-llm-gateway-prod-exfil","metadata":{"ip":"10.20.15.32","reason":"recurring backup","rows":4800}}',
+                          '{"ts":"2025-10-22T10:01:10Z","gateway_node":"llm-gateway-01","user_id":"cust-11011","session_id":"sess-22093","tool":"chat_completion","dest":"api.heliosbank.internal","api_key":"sk-llm-gateway-prod-main","metadata":{"ip":"10.20.15.32","model":"helio-gpt-3.5"}}'
+                        ].join("\n")
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    const commandList = [
+      "help",
+      "ls",
+      "cd",
+      "pwd",
+      "cat",
+      "less",
+      "tail",
+      "grep",
+      "jq",
+      "clear",
+      "exit"
+    ];
+
+    const terminalOutput = document.getElementById("terminal-output");
+    const terminalInput = document.getElementById("terminal-input");
+    const promptPathSpan = document.getElementById("prompt-path");
+
+    let cwd = "/home/helios-ir";
+    let history = [];
+    let historyIndex = -1;
+
+    function appendOutput(line) {
+      terminalOutput.textContent += line + "\n";
+      terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+
+    function appendOutputBlock(blockText) {
+      blockText.split("\n").forEach(line => appendOutput(line));
+    }
+
+    function formatPromptPath() {
+      if (cwd.startsWith("/home/helios-ir")) {
+        const rest = cwd.slice("/home/helios-ir".length);
+        return rest === "" ? "~" : "~" + rest;
+      }
+      return cwd || "/";
+    }
+
+    function getNode(path) {
+      const clean = path === "" ? "/" : path;
+      if (clean === "/") return vfs["/"];
+      const parts = clean.replace(/^\/+/, "").split("/");
+      let node = vfs["/"];
+      for (const part of parts) {
+        if (!node.children || !node.children[part]) return null;
+        node = node.children[part];
+      }
+      return node;
+    }
+
+    function resolvePath(input, baseDir) {
+      if (!input || input === ".") return baseDir;
+      if (input === "~") return "/home/helios-ir";
+      let path = input.startsWith("/") ? input : baseDir + "/" + input;
+      const segments = [];
+      path.split("/").forEach(seg => {
+        if (!seg || seg === ".") return;
+        if (seg === "..") {
+          segments.pop();
+        } else {
+          segments.push(seg);
+        }
+      });
+      return "/" + segments.join("/");
+    }
+
+    function listDir(path) {
+      const node = getNode(path);
+      if (!node) {
+        appendOutput("ls: cannot access '" + path + "': No such file or directory");
+        return;
+      }
+      if (node.type !== "dir") {
+        appendOutput(path);
+        return;
+      }
+      const names = Object.keys(node.children).sort();
+      appendOutput(names.join("  "));
+    }
+
+    function readFile(path) {
+      const node = getNode(path);
+      if (!node || node.type !== "file") {
+        appendOutput("cat: " + path + ": No such file");
+        return;
+      }
+      appendOutput(node.content);
+    }
+
+    function tailFile(path, lines = 10) {
+      const node = getNode(path);
+      if (!node || node.type !== "file") {
+        appendOutput("tail: " + path + ": No such file");
+        return;
+      }
+      const allLines = node.content.split("\n");
+      const slice = allLines.slice(-lines).join("\n");
+      appendOutput(slice);
+    }
+
+    function grepFile(pattern, path, ignoreCase) {
+      const node = getNode(path);
+      if (!node || node.type !== "file") {
+        appendOutput("grep: " + path + ": No such file");
+        return;
+      }
+      const patt = ignoreCase ? pattern.toLowerCase() : pattern;
+      const lines = node.content.split("\n");
+      lines.forEach(line => {
+        const target = ignoreCase ? line.toLowerCase() : line;
+        if (target.includes(patt)) {
+          appendOutput(line);
+        }
+      });
+    }
+
+    function jqFile(filter, path) {
+      const node = getNode(path);
+      if (!node || node.type !== "file") {
+        appendOutput("jq: " + path + ": No such file");
+        return;
+      }
+      const filterTrimmed = (filter || ".").trim();
+      const lines = node.content.split("\n");
+      lines.forEach(line => {
+        if (!line.trim()) return;
+        try {
+          const obj = JSON.parse(line);
+          if (filterTrimmed === "." || filterTrimmed === "") {
+            appendOutput(JSON.stringify(obj));
+          } else if (filterTrimmed === ".tool") {
+            appendOutput(String(obj.tool));
+          } else if (
+            filterTrimmed === 'select(.tool=="export_conversations")' ||
+            filterTrimmed === "select(.tool==\"export_conversations\")"
+          ) {
+            if (obj.tool === "export_conversations") {
+              appendOutput(JSON.stringify(obj));
+            }
+          } else if (filterTrimmed === ".api_key") {
+            appendOutput(String(obj.api_key));
+          } else {
+            appendOutput("jq: unsupported filter in this simulation: " + filterTrimmed);
+          }
+        } catch (err) {
+          appendOutput("jq: parse error on line: " + line);
+        }
+      });
+    }
+
+    function printBanner() {
+      appendOutputBlock(
+        "HeliosBank IR Jump Host - Scenario 3: LLM Exfiltration Hunt\n" +
+        "----------------------------------------------------------------\n" +
+        "You are logged in as helios-ir@jump01.\n" +
+        "Use this shell to investigate logs and artifacts.\n" +
+        "Instructions, hints, and answer submission are in the left-hand panel.\n"
+      );
+      appendOutputBlock(
+        "Quick start:\n" +
+        "  - Read the active alert and step on the left.\n" +
+        "  - Use commands like cd, ls, cat, tail, grep, jq to inspect logs.\n" +
+        "  - Copy relevant log lines from here into the answer box to progress.\n"
+      );
+    }
+
+    function handleHelp() {
+      appendOutputBlock(
+        "Available commands:\n" +
+        "  help                        Show this help\n" +
+        "  ls [path]                   List directory contents\n" +
+        "  cd [path]                   Change directory\n" +
+        "  pwd                         Print working directory\n" +
+        "  cat <file>                  Print file contents\n" +
+        "  less <file>                 Alias for cat in this simulation\n" +
+        "  tail <file>                 Show last lines of a file\n" +
+        "  grep [-i] <pat> <file>      Search for a substring in a file\n" +
+        "  jq <filter> <file>          Tiny jq over JSONL (.tool, .api_key, select(.tool==\"export_conversations\"))\n" +
+        "  clear                       Clear the screen\n" +
+        "  exit                        Exit the shell (no-op here)\n" +
+        "\n" +
+        "Hints and flags are managed in the left-hand panel, not via commands.\n"
+      );
+    }
+
+    function clearScreen() {
+      terminalOutput.textContent = "";
+    }
+
+    function tokenize(input) {
+      return input.trim().length === 0 ? [] : input.trim().split(/\s+/);
+    }
+
+    function handleCommand(rawLine) {
+      const line = rawLine.trim();
+      if (!line) return;
+
+      const tokens = tokenize(line);
+      if (tokens.length === 0) return;
+
+      const cmd = tokens[0];
+      const args = tokens.slice(1);
+
+      switch (cmd) {
+        case "help":
+          handleHelp();
+          break;
+        case "ls": {
+          const target = args[0] ? resolvePath(args[0], cwd) : cwd;
+          listDir(target);
+          break;
+        }
+        case "cd": {
+          const targetPath = args[0] ? resolvePath(args[0], cwd) : "/home/helios-ir";
+          const node = getNode(targetPath);
+          if (!node || node.type !== "dir") {
+            appendOutput("cd: no such file or directory: " + (args[0] || targetPath));
+          } else {
+            cwd = targetPath;
+            promptPathSpan.textContent = formatPromptPath();
+          }
+          break;
+        }
+        case "pwd":
+          appendOutput(cwd);
+          break;
+        case "cat": {
+          if (!args[0]) {
+            appendOutput("cat: missing file operand");
+          } else {
+            const path = resolvePath(args[0], cwd);
+            readFile(path);
+          }
+          break;
+        }
+        case "less": {
+          if (!args[0]) {
+            appendOutput("less: missing file operand");
+          } else {
+            const path = resolvePath(args[0], cwd);
+            readFile(path);
+          }
+          break;
+        }
+        case "tail": {
+          if (!args[0]) {
+            appendOutput("tail: missing file operand");
+          } else {
+            const path = resolvePath(args[0], cwd);
+            tailFile(path);
+          }
+          break;
+        }
+        case "grep": {
+          if (args.length < 2) {
+            appendOutput("grep: usage: grep [-i] <pattern> <file>");
+          } else {
+            let ignore = false;
+            let pattern;
+            let fileArg;
+            if (args[0] === "-i") {
+              ignore = true;
+              pattern = args[1];
+              fileArg = args[2];
+            } else {
+              pattern = args[0];
+              fileArg = args[1];
+            }
+            if (!pattern || !fileArg) {
+              appendOutput("grep: usage: grep [-i] <pattern> <file>");
+            } else {
+              const path = resolvePath(fileArg, cwd);
+              grepFile(pattern, path, ignore);
+            }
+          }
+          break;
+        }
+        case "jq": {
+          if (args.length < 1) {
+            appendOutput("jq: usage: jq <filter> <file>");
+          } else if (args.length === 1) {
+            const filePath = resolvePath(args[0], cwd);
+            jqFile(".", filePath);
+          } else {
+            let filter = args[0];
+            if (
+              (filter.startsWith("'") && filter.endsWith("'")) ||
+              (filter.startsWith('"') && filter.endsWith('"'))
+            ) {
+              filter = filter.slice(1, -1);
+            }
+            const filePath = resolvePath(args[1], cwd);
+            jqFile(filter, filePath);
+          }
+          break;
+        }
+        case "clear":
+          clearScreen();
+          break;
+        case "exit":
+          appendOutput("Use the browser back button or close the tab to leave the scenario.");
+          break;
+        default:
+          appendOutput(cmd + ": command not found");
+      }
+    }
+
+    function handleTabComplete() {
+      const value = terminalInput.value;
+      const cursorPos = terminalInput.selectionStart;
+      if (cursorPos !== value.length) return;
+
+      const trimmed = value.replace(/\s+$/g, "");
+      if (!trimmed) {
+        appendOutput(commandList.join("  "));
+        return;
+      }
+
+      const parts = trimmed.split(/\s+/);
+      const isFirst = parts.length === 1;
+
+      if (isFirst) {
+        const prefix = parts[0];
+        const matches = commandList.filter(c => c.startsWith(prefix));
+        if (matches.length === 1) {
+          terminalInput.value = matches[0] + " ";
+        } else if (matches.length > 1) {
+          appendOutput(matches.join("  "));
+        }
+      } else {
+        const namePrefix = parts[parts.length - 1];
+        const node = getNode(cwd);
+        if (!node || node.type !== "dir") return;
+
+        const names = Object.keys(node.children || {});
+        const matches = names.filter(n => n.startsWith(namePrefix));
+        if (matches.length === 1) {
+          parts[parts.length - 1] = matches[0];
+          terminalInput.value = parts.join(" ") + " ";
+        } else if (matches.length > 1) {
+          appendOutput(matches.join("  "));
+        }
+      }
+    }
+
+    terminalInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        const value = terminalInput.value;
+        const promptStr = "helios-ir@jump01:" + formatPromptPath() + "$ " + value;
+        appendOutput(promptStr);
+
+        if (value.trim()) {
+          history.push(value);
+          historyIndex = history.length;
+        }
+
+        handleCommand(value);
+        terminalInput.value = "";
+        event.preventDefault();
+      } else if (event.key === "ArrowUp") {
+        if (historyIndex > 0) {
+          historyIndex -= 1;
+          terminalInput.value = history[historyIndex] || "";
+        }
+        setTimeout(() => {
+          const len = terminalInput.value.length;
+          terminalInput.selectionStart = terminalInput.selectionEnd = len;
+        }, 0);
+        event.preventDefault();
+      } else if (event.key === "ArrowDown") {
+        if (historyIndex < history.length - 1) {
+          historyIndex += 1;
+          terminalInput.value = history[historyIndex] || "";
+        } else {
+          historyIndex = history.length;
+          terminalInput.value = "";
+        }
+        setTimeout(() => {
+          const len = terminalInput.value.length;
+          terminalInput.selectionStart = terminalInput.selectionEnd = len;
+        }, 0);
+        event.preventDefault();
+      } else if (event.key === "Tab") {
+        handleTabComplete();
+        event.preventDefault();
+      }
+    });
+
+    // Initialize
+    printBanner();
+    renderStep();
+    terminalInput.focus();
+  </script>
+</body>
+</html>
